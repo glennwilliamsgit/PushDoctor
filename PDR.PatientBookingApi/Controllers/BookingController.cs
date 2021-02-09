@@ -19,17 +19,17 @@ namespace PDR.PatientBookingApi.Controllers
         }
 
         [HttpGet("patient/{identificationNumber}/next")]
-        public IActionResult GetPatientNextAppointnemtn(long identificationNumber)
+        public IActionResult GetPatientNextAppointment(long identificationNumber)
         {
-            var bockings = _context.Order.OrderBy(x => x.StartTime).ToList();
+            var bookings = _context.Order.OrderBy(x => x.StartTime).ToList();
 
-            if (bockings.Where(x => x.Patient.Id == identificationNumber).Count() == 0)
+            if (bookings.Where(x => x.Patient.Id == identificationNumber && x.AppointmentCancelled == false).Count() == 0)
             {
                 return StatusCode(502);
             }
             else
             {
-                var bookings2 = bockings.Where(x => x.PatientId == identificationNumber);
+                var bookings2 = bookings.Where(x => x.PatientId == identificationNumber);
                 if (bookings2.Where(x => x.StartTime > DateTime.Now).Count() == 0)
                 {
                     return StatusCode(502);
@@ -51,9 +51,26 @@ namespace PDR.PatientBookingApi.Controllers
         [HttpPost()]
         public IActionResult AddBooking(NewBooking newBooking)
         {
+            // check previous dates
+			if (newBooking.StartTime < DateTime.Now)
+			{
+				return StatusCode(400);
+			}
+
+			// get doctors appointments
+			var bookings = _context.Order.Where(x => x.DoctorId == newBooking.DoctorId);
+
+            // checking conflicts 
+            var conflicts = bookings.Where(b => (newBooking.StartTime > b.StartTime && newBooking.StartTime < b.EndTime) || newBooking.EndTime > b.StartTime && newBooking.EndTime < b.EndTime).ToList();
+
+            if (conflicts.Count() > 0)
+            {
+                return StatusCode(400);
+            }
+
             var bookingId = new Guid();
             var bookingStartTime = newBooking.StartTime;
-            var bookingEndTime = newBooking.EndTime;
+            var bookingEndTime = newBooking.EndTime;    
             var bookingPatientId = newBooking.PatientId;
             var bookingPatient = _context.Patient.FirstOrDefault(x => x.Id == newBooking.PatientId);
             var bookingDoctorId = newBooking.DoctorId;
@@ -69,7 +86,8 @@ namespace PDR.PatientBookingApi.Controllers
                 DoctorId = bookingDoctorId,
                 Patient = bookingPatient,
                 Doctor = bookingDoctor,
-                SurgeryType = (int)bookingSurgeryType
+                SurgeryType = (int)bookingSurgeryType,
+                AppointmentCancelled = false
             };
 
             _context.Order.AddRange(new List<Order> { myBooking });

@@ -1,15 +1,16 @@
 ﻿using PDR.PatientBooking.Data;
 using PDR.PatientBooking.Service.DoctorServices.Requests;
 using PDR.PatientBooking.Service.Validation;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Mail;
 
 namespace PDR.PatientBooking.Service.DoctorServices.Validation
 {
     public class AddDoctorRequestValidator : IAddDoctorRequestValidator
     {
         private readonly PatientBookingContext _context;
-
         public AddDoctorRequestValidator(PatientBookingContext context)
         {
             _context = context;
@@ -19,17 +20,18 @@ namespace PDR.PatientBooking.Service.DoctorServices.Validation
         {
             var result = new PdrValidationResult(true);
 
-            if (MissingRequiredFields(request, ref result))
-                return result;
+			if (MissingRequiredFields(request, ref result))
+				return result;
 
-            if (DoctorAlreadyInDb(request, ref result))
-                return result;
+			if (DoctorAlreadyInDb(request, ref result))
+				return result;
 
             return result;
         }
 
         public bool MissingRequiredFields(AddDoctorRequest request, ref PdrValidationResult result)
         {
+            
             var errors = new List<string>();
 
             if (string.IsNullOrEmpty(request.FirstName))
@@ -40,6 +42,12 @@ namespace PDR.PatientBooking.Service.DoctorServices.Validation
 
             if (string.IsNullOrEmpty(request.Email))
                 errors.Add("Email must be populated");
+            else
+            {
+                if (!IsValid(request.Email))
+                    errors.Add("Email must be a valid email address");
+            }
+            
 
             if (errors.Any())
             {
@@ -49,6 +57,19 @@ namespace PDR.PatientBooking.Service.DoctorServices.Validation
             }
 
             return false;
+        }
+        public bool IsValid(string emailaddress)
+        {
+            try
+            {
+                MailAddress m = new MailAddress(emailaddress);
+
+                return true;
+            }
+            catch (FormatException)
+            {
+                return false;
+            }
         }
 
         private bool DoctorAlreadyInDb(AddDoctorRequest request, ref PdrValidationResult result)

@@ -1,15 +1,16 @@
 ﻿using PDR.PatientBooking.Data;
 using PDR.PatientBooking.Service.PatientServices.Requests;
 using PDR.PatientBooking.Service.Validation;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Mail;
 
 namespace PDR.PatientBooking.Service.PatientServices.Validation
 {
     public class AddPatientRequestValidator : IAddPatientRequestValidator
     {
         private readonly PatientBookingContext _context;
-
         public AddPatientRequestValidator(PatientBookingContext context)
         {
             _context = context;
@@ -19,16 +20,20 @@ namespace PDR.PatientBooking.Service.PatientServices.Validation
         {
             var result = new PdrValidationResult(true);
 
-            if (MissingRequiredFields(request, ref result))
-                return result;
+            //if (MissingRequiredFields(request, ref result))
+            //    return result;
 
-            if (PatientAlreadyInDb(request, ref result))
-                return result;
+            //if (PatientAlreadyInDb(request, ref result))
+            //    return result;
 
-            if (ClinicNotFound(request, ref result))
-                return result;
+            //if (ClinicNotFound(request, ref result))
+            //    return result;
 
-            return result;
+            MissingRequiredFields(request, ref result);
+            PatientAlreadyInDb(request, ref result);
+            ClinicNotFound(request, ref result);
+
+                return result;
         }
 
         private bool MissingRequiredFields(AddPatientRequest request, ref PdrValidationResult result)
@@ -43,6 +48,11 @@ namespace PDR.PatientBooking.Service.PatientServices.Validation
 
             if (string.IsNullOrEmpty(request.Email))
                 errors.Add("Email must be populated");
+            else
+            {
+                if (!IsValid(request.Email))
+                    errors.Add("Email must be a valid email address");
+            }
 
             if (errors.Any())
             {
@@ -52,6 +62,19 @@ namespace PDR.PatientBooking.Service.PatientServices.Validation
             }
 
             return false;
+        }
+        public bool IsValid(string emailaddress)
+        {
+            try
+            {
+                MailAddress m = new MailAddress(emailaddress);
+
+                return true;
+            }
+            catch (FormatException)
+            {
+                return false;
+            }
         }
 
         private bool PatientAlreadyInDb(AddPatientRequest request, ref PdrValidationResult result)
